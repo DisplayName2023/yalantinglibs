@@ -19,3 +19,6 @@ else()
   # include_directories(include/ylt/thirdparty)
 endif()
 add_executable(struct_json_example main.cpp user_defined_struct.cpp)
+
+find_package(magic_enum REQUIRED)
+target_include_directories(struct_json_example PUBLIC ${magic_enum_INCLUDE_DIRS})

@@ -5,7 +5,7 @@ from conan.tools.files import copy, collect_libs
 from pathlib import Path
 
 class YalantinglibsConan(ConanFile):
-    name = "conan_yalantinglibs"
+    name = "yalantinglibs"
     license = "MIT"
     author = "Yalantinglibs"
     url = "yalantinglibs"
@@ -16,7 +16,7 @@ class YalantinglibsConan(ConanFile):
 
     build_policy = "missing"
     short_paths = True
-     
+
     requires = "magic_enum/0.9.6"
 
     def requirements(self):
@@ -48,5 +48,5 @@ class YalantinglibsConan(ConanFile):
     def package_info(self):
         self.cpp_info.libs = collect_libs(self)
         self.output.info("package_info() " + ' '.join(self.cpp_info.libs))
-        self.cpp_info.names["cmake_find_package"] = "conan_yalantinglibs"
-        self.cpp_info.names["cmake_find_package_multi"] = "conan_yalantinglibs"
+        self.cpp_info.names["cmake_find_package"] = "yalantinglibs"
+        self.cpp_info.names["cmake_find_package_multi"] = "yalantinglibs"

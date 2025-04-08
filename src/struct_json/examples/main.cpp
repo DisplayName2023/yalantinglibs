@@ -1,10 +1,16 @@
-#include <cassert>
+
+
+#include "magic_enum/magic_enum.hpp"
+
 #include <iguana/json_reader.hpp>
 #include <iguana/json_writer.hpp>
-#include <iostream>
 
 #include "ylt/struct_json/json_reader.h"
 #include "ylt/struct_json/json_writer.h"
+
+
+#include <cassert>
+#include <iostream>
 
 void test_user_defined_struct();
 
@@ -61,17 +67,29 @@ void test_inner_object() {
 #endif
 }
 
+
+enum Color
+{
+    Yellow,
+    Blue,
+    Purple
+};
+
 struct person1 {
   std::shared_ptr<std::string> name;
   std::unique_ptr<int64_t> age;
+  Color color;
+
 };
-YLT_REFL(person1, name, age);
+YLT_REFL(person1, name, age, color);
 
 void use_smart_pointer() {
   person1 p{std::make_shared<std::string>("tom"),
             std::make_unique<int64_t>(42)};
   std::string str;
   iguana::to_json(p, str);
+
+  std::cout << str << std::endl;
 
   person1 p1;
   iguana::from_json(p1, str);

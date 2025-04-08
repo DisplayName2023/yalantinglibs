@@ -6,6 +6,8 @@
 #define SERIALIZE_JSON_HPP
 #include "json_util.hpp"
 
+// #include "magic_enum/magic_enum.hpp"
+
 namespace iguana {
 
 template <bool Is_writing_escape = true, typename Stream, typename T,
@@ -133,8 +135,17 @@ template <bool Is_writing_escape, typename Stream, typename T,
 IGUANA_INLINE void to_json_impl(Stream &ss, T val) {
   static constexpr auto enum_to_str = get_enum_map<false, std::decay_t<T>>();
   if constexpr (bool_v<decltype(enum_to_str)>) {
+
+#if defined NEARGYE_MAGIC_ENUM_HPP
+    auto str = magic_enum::enum_name<std::decay_t<T>>(val);
+    to_json_impl<Is_writing_escape>(ss, std::string_view(str.data(), str.size()));
+  
+#else
+
     to_json_impl<Is_writing_escape>(
         ss, static_cast<std::underlying_type_t<T>>(val));
+#endif
+
   }
   else {
     auto it = enum_to_str.find(val);

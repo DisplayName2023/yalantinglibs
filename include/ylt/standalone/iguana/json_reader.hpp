@@ -2,6 +2,10 @@
 #include "detail/utf.hpp"
 #include "error_code.h"
 #include "json_util.hpp"
+
+// #include "magic_enum/magic_enum.hpp"
+
+
 namespace iguana {
 
 template <typename T, typename It,
@@ -156,101 +160,120 @@ IGUANA_INLINE void from_json_impl(U &value, It &&it, It &&end) {
 }
 
 template <typename U, typename It, std::enable_if_t<bool_v<U>, int> = 0>
-IGUANA_INLINE void from_json_impl(U &&value, It &&it, It &&end) {
-  skip_ws(it, end);
+IGUANA_INLINE void from_json_impl(U&& value, It&& it, It&& end) {
+    skip_ws(it, end);
 
-  if (it < end)
-    IGUANA_LIKELY {
-      switch (*it) {
-        case 't':
-          ++it;
-          match<'r', 'u', 'e'>(it, end);
-          value = true;
-          break;
-        case 'f':
-          ++it;
-          match<'a', 'l', 's', 'e'>(it, end);
-          value = false;
-          break;
-          IGUANA_UNLIKELY default
-              : throw std::runtime_error("Expected true or false");
-      }
+    if (it < end)
+        IGUANA_LIKELY{
+          switch (*it) {
+            case 't':
+              ++it;
+              match<'r', 'u', 'e'>(it, end);
+              value = true;
+              break;
+            case 'f':
+              ++it;
+              match<'a', 'l', 's', 'e'>(it, end);
+              value = false;
+              break;
+              IGUANA_UNLIKELY default
+                  : throw std::runtime_error("Expected true or false");
+          }
     }
-  else
-    IGUANA_UNLIKELY { throw std::runtime_error("Expected true or false"); }
+    else
+        IGUANA_UNLIKELY{ throw std::runtime_error("Expected true or false"); }
 }
 
 template <bool skip = false, typename U, typename It,
-          std::enable_if_t<string_v<U>, int> = 0>
-IGUANA_INLINE void from_json_impl(U &value, It &&it, It &&end) {
-  if constexpr (!skip) {
-    skip_ws(it, end);
-    match<'"'>(it, end);
-  }
-  value.clear();
-  if constexpr (contiguous_iterator<std::decay_t<It>>) {
+    std::enable_if_t<string_v<U>, int> = 0>
+IGUANA_INLINE void from_json_impl(U& value, It&& it, It&& end) {
+    if constexpr (!skip) {
+        skip_ws(it, end);
+        match<'"'>(it, end);
+    }
+    value.clear();
+    if constexpr (contiguous_iterator<std::decay_t<It>>) {
+        auto start = it;
+        while (it < end) {
+            skip_till_escape_or_qoute(it, end);
+            if (*it == '"') {
+                value.append(&*start, static_cast<size_t>(std::distance(start, it)));
+                ++it;
+                return;
+            }
+            else {
+                // Must be an escape
+                value.append(&*start, static_cast<size_t>(std::distance(start, it)));
+                ++it;  // skip first escape
+                parse_escape(value, it, end);
+                start = it;
+            }
+        }
+    }
+    else {
+        while (it != end) {
+            switch (*it) {
+            IGUANA_UNLIKELY case '\\': ++it;
+                                     parse_escape(value, it, end);
+                                     break;
+                                     // IGUANA_UNLIKELY case ']' : return;
+            IGUANA_UNLIKELY case '"': ++it;
+                                    return;
+            IGUANA_LIKELY default: value.push_back(*it);
+                                 ++it;
+            }
+        }
+    }
+}
+
+template <bool skip = false, typename U, typename It,
+    std::enable_if_t<string_view_v<U>, int> = 0>
+IGUANA_INLINE void from_json_impl(U& value, It&& it, It&& end) {
+    static_assert(contiguous_iterator<std::decay_t<It>>, "must be contiguous");
+    if constexpr (!skip) {
+        skip_ws(it, end);
+        match<'"'>(it, end);
+    }
+    using T = std::decay_t<U>;
     auto start = it;
-    while (it < end) {
-      skip_till_escape_or_qoute(it, end);
-      if (*it == '"') {
-        value.append(&*start, static_cast<size_t>(std::distance(start, it)));
-        ++it;
-        return;
-      }
-      else {
-        // Must be an escape
-        value.append(&*start, static_cast<size_t>(std::distance(start, it)));
-        ++it;  // skip first escape
-        parse_escape(value, it, end);
-        start = it;
-      }
-    }
-  }
-  else {
     while (it != end) {
-      switch (*it) {
-        IGUANA_UNLIKELY case '\\' : ++it;
-        parse_escape(value, it, end);
-        break;
-        // IGUANA_UNLIKELY case ']' : return;
-        IGUANA_UNLIKELY case '"' : ++it;
-        return;
-        IGUANA_LIKELY default : value.push_back(*it);
+        skip_till_qoute(it, end);
+        if (*(it - 1) != '\\') {
+            value = T(&*start, static_cast<size_t>(std::distance(start, it)));
+            ++it;
+            return;
+        }
         ++it;
-      }
     }
-  }
-}
-
-template <bool skip = false, typename U, typename It,
-          std::enable_if_t<string_view_v<U>, int> = 0>
-IGUANA_INLINE void from_json_impl(U &value, It &&it, It &&end) {
-  static_assert(contiguous_iterator<std::decay_t<It>>, "must be contiguous");
-  if constexpr (!skip) {
-    skip_ws(it, end);
-    match<'"'>(it, end);
-  }
-  using T = std::decay_t<U>;
-  auto start = it;
-  while (it != end) {
-    skip_till_qoute(it, end);
-    if (*(it - 1) != '\\') {
-      value = T(&*start, static_cast<size_t>(std::distance(start, it)));
-      ++it;
-      return;
-    }
-    ++it;
-  }
-  throw std::runtime_error("Expected \"");
+    throw std::runtime_error("Expected \"");
 }
 
 template <typename U, typename It, std::enable_if_t<enum_v<U>, int> = 0>
-IGUANA_INLINE void from_json_impl(U &value, It &&it, It &&end) {
-  static constexpr auto str_to_enum = get_enum_map<true, std::decay_t<U>>();
-  if constexpr (bool_v<decltype(str_to_enum)>) {
+IGUANA_INLINE void from_json_impl(U& value, It&& it, It&& end) {
+    static constexpr auto str_to_enum = get_enum_map<true, std::decay_t<U>>();
+    if constexpr (bool_v<decltype(str_to_enum)>) {
+
+#if defined NEARGYE_MAGIC_ENUM_HPP
+    std::string_view enum_names;
+    from_json_impl(enum_names, it, end);
+    if (auto casted_enum_ptr = magic_enum::enum_cast<std::decay_t<U>>(enum_names))
+    {
+        value = static_cast<std::decay_t<U>>(*casted_enum_ptr);
+    }
+    else
+    {
+      // not defined a specialization template
+      using T = std::underlying_type_t<std::decay_t<U>>;
+      from_json_impl(reinterpret_cast<T &>(value), it, end);
+    }
+
+#else
+
     // not defined a specialization template
     using T = std::underlying_type_t<std::decay_t<U>>;
     from_json_impl(reinterpret_cast<T &>(value), it, end);
+
+#endif
   }
   else {
     std::string_view enum_names;
