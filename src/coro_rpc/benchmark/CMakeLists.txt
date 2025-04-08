@@ -16,7 +16,7 @@ if (GENERATE_BENCHMARK_DATA)
     target_compile_definitions(coro_rpc_benchmark_data_gen PRIVATE GENERATE_BENCHMARK_DATA)
     add_custom_command(
             TARGET coro_rpc_benchmark_data_gen POST_BUILD
-            COMMAND ./coro_rpc_benchmark_data_gen
+            COMMAND "$<TARGET_FILE:coro_rpc_benchmark_data_gen>"
             COMMENT "generate benchmark data"
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/output/benchmark
             VERBATIM
