@@ -9,9 +9,9 @@ class YalantinglibsConan(ConanFile):
     license = "MIT"
     author = "Yalantinglibs"
     url = "yalantinglibs"
-    version = "0.3.9-1"
+    version = "0.3.9-2"
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeDeps", "CMakeToolchain"
+    
     exports_sources = "CMakeLists.txt", "include/*", "cmake/*" # "src/*", 
 
     build_policy = "missing"
